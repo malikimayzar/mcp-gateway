@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/malikimayzar/mcp-gateway/internal/planner"
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 	"github.com/malikimayzar/mcp-gateway/internal/tools"
 )
@@ -47,12 +48,92 @@ func main() {
 
 		resp := reg.Execute(ctx, req)
 		w.Header().Set("Content-Type", "application/json")
-                if !resp.Success {
+		if !resp.Success {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 		json.NewEncoder(w).Encode(resp)
 	})
 
+	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query string `json:"query"`
+			TopK  int    `json:"top_k"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if body.Query == "" {
+			http.Error(w, "query is required", http.StatusBadRequest)
+			return
+		}
+		if body.TopK == 0 {
+			body.TopK = 5
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
+		defer cancel()
+
+		p := planner.MakePlan(body.Query, body.TopK)
+		result := planner.Execute(ctx, reg, p)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+
+	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query string `json:"query"`
+			TopK  int    `json:"top_k"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if body.Query == "" {
+			http.Error(w, "query is required", http.StatusBadRequest)
+			return
+		}
+		if body.TopK == 0 {
+			body.TopK = 5
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
+		defer cancel()
+
+		p := planner.MakePlan(body.Query, body.TopK)
+		result := planner.Execute(ctx, reg, p)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
+
+	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Query string `json:"query"`
+			TopK  int    `json:"top_k"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		if body.Query == "" {
+			http.Error(w, "query is required", http.StatusBadRequest)
+			return
+		}
+		if body.TopK == 0 {
+			body.TopK = 5
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
+		defer cancel()
+
+		p := planner.MakePlan(body.Query, body.TopK)
+		result := planner.Execute(ctx, reg, p)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(result)
+	})
 	log.Println("MCP Gateway starting on :8090")
 	log.Fatal(http.ListenAndServe(":8090", r))
 }
