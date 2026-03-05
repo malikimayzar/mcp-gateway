@@ -116,3 +116,37 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+func ExecuteWithRetry(ctx context.Context, reg *registry.Registry, query string, topK int) ExecutionResult {
+	// First attempt: hybrid
+	plan := MakePlan(query, topK)
+	result := Execute(ctx, reg, plan)
+
+	// Kalau score rendah, retry dengan bm25
+	if result.Score < 0.6 && result.Score > 0 {
+		retryPlan := Plan{
+			Query: query,
+			Steps: []Step{
+				{
+					ToolName: "retrieve_chunks",
+					Params: map[string]interface{}{
+						"query":  query,
+						"top_k":  float64(topK),
+						"method": "bm25",
+					},
+				},
+				{
+					ToolName: "evaluate_answer",
+					Params:   map[string]interface{}{},
+				},
+			},
+		}
+		retryResult := Execute(ctx, reg, retryPlan)
+		if retryResult.Score > result.Score {
+			retryResult.Query = query + " [retried:bm25]"
+			return retryResult
+		}
+	}
+
+	return result
+}

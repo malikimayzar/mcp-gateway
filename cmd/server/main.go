@@ -74,8 +74,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
 		defer cancel()
 
-		p := planner.MakePlan(body.Query, body.TopK)
-		result := planner.Execute(ctx, reg, p)
+		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
@@ -101,8 +100,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
 		defer cancel()
 
-		p := planner.MakePlan(body.Query, body.TopK)
-		result := planner.Execute(ctx, reg, p)
+		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
@@ -128,8 +126,7 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
 		defer cancel()
 
-		p := planner.MakePlan(body.Query, body.TopK)
-		result := planner.Execute(ctx, reg, p)
+		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(result)
