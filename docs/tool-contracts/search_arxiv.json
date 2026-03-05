@@ -1,0 +1,21 @@
+{
+  "name": "search_arxiv",
+  "description": "Search and ingest ArXiv papers, then query them",
+  "endpoint": "http://localhost:8080",
+  "timeout_seconds": 30,
+  "input": {
+    "query": "string (required)",
+    "top_k": "int (default: 5)"
+  },
+  "output": {
+    "answer": "string",
+    "sources": "array of chunks",
+    "retrieval_ms": "int",
+    "generation_ms": "int"
+  },
+  "errors": {
+    "500": "ml service unavailable",
+    "404": "no chunks found",
+    "400": "empty query"
+  }
+}
