@@ -14,6 +14,7 @@ type ExecutionResult struct {
 	Answer  string
 	Context string
 	Score   float64
+	Retried bool
 }
 
 type StepResult struct {
@@ -143,7 +144,8 @@ func ExecuteWithRetry(ctx context.Context, reg *registry.Registry, query string,
 		}
 		retryResult := Execute(ctx, reg, retryPlan)
 		if retryResult.Score > result.Score {
-			retryResult.Query = query + " [retried:bm25]"
+			retryResult.Query = query
+			retryResult.Retried = true
 			return retryResult
 		}
 	}
