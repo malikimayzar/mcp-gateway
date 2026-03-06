@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/malikimayzar/mcp-gateway/internal/orchestrator"
 	"github.com/malikimayzar/mcp-gateway/internal/planner"
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 	"github.com/malikimayzar/mcp-gateway/internal/tools"
@@ -25,6 +26,7 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.RequestID)
 
+	// GET /health — list registered tools
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
@@ -32,13 +34,13 @@ func main() {
 		})
 	})
 
+	// POST /tool — direct tool call
 	r.Post("/tool", func(w http.ResponseWriter, r *http.Request) {
 		var req registry.ToolRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
 			return
 		}
-
 		if req.TraceID == "" {
 			req.TraceID = middleware.GetReqID(r.Context())
 		}
@@ -54,6 +56,7 @@ func main() {
 		json.NewEncoder(w).Encode(resp)
 	})
 
+	// POST /plan — rule-based planner + eval loop
 	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Query string `json:"query"`
@@ -80,7 +83,8 @@ func main() {
 		json.NewEncoder(w).Encode(result)
 	})
 
-	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
+	// POST /ask — Groq LLM orchestrator, fallback ke rule-based
+	r.Post("/ask", func(w http.ResponseWriter, r *http.Request) {
 		var body struct {
 			Query string `json:"query"`
 			TopK  int    `json:"top_k"`
@@ -100,37 +104,65 @@ func main() {
 		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
 		defer cancel()
 
-		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
+		// Coba Groq dulu
+		orcPlan, err := orchestrator.Plan(ctx, body.Query)
+		if err != nil {
+			// Fallback ke rule-based planner
+			log.Printf("[ask] Groq failed (%v), falling back to rule-based planner", err)
+			result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
-	})
-
-	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
-		var body struct {
-			Query string `json:"query"`
-			TopK  int    `json:"top_k"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			http.Error(w, "invalid request body", http.StatusBadRequest)
+			// Tambah field orchestrator = "rule-based"
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(withOrchestrator(result, "rule-based"))
 			return
 		}
-		if body.Query == "" {
-			http.Error(w, "query is required", http.StatusBadRequest)
-			return
+
+		log.Printf("[ask] using Groq plan (%d steps)", len(orcPlan.Steps))
+
+		// Build execPlan dari Groq plan
+		execPlan := planner.Plan{Query: body.Query}
+		for _, step := range orcPlan.Steps {
+			if step.Params == nil {
+				step.Params = map[string]interface{}{}
+			}
+			if _, ok := step.Params["query"]; !ok {
+				step.Params["query"] = body.Query
+			}
+			if _, ok := step.Params["top_k"]; !ok {
+				step.Params["top_k"] = float64(body.TopK)
+			}
+			execPlan.Steps = append(execPlan.Steps, planner.Step{
+				ToolName: step.ToolName,
+				Params:   step.Params,
+			})
 		}
-		if body.TopK == 0 {
-			body.TopK = 5
-		}
 
-		ctx, cancel := context.WithTimeout(r.Context(), 620*time.Second)
-		defer cancel()
+		result := planner.Execute(ctx, reg, execPlan)
 
-		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
-
+		// Tambah field orchestrator = "groq"
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		json.NewEncoder(w).Encode(withOrchestrator(result, "groq"))
 	})
+
 	log.Println("MCP Gateway starting on :8090")
 	log.Fatal(http.ListenAndServe(":8090", r))
+}
+
+// withOrchestrator menyuntikkan field "orchestrator" ke result map
+// tanpa mengubah struct planner.Result yang sudah ada.
+func withOrchestrator(result interface{}, name string) map[string]interface{} {
+	// Marshal result ke JSON dulu
+	b, err := json.Marshal(result)
+	if err != nil {
+		return map[string]interface{}{"orchestrator": name, "error": "marshal failed"}
+	}
+
+	// Unmarshal ke map supaya bisa tambah field
+	var m map[string]interface{}
+	if err := json.Unmarshal(b, &m); err != nil {
+		return map[string]interface{}{"orchestrator": name, "error": "unmarshal failed"}
+	}
+
+	m["orchestrator"] = name
+	return m
 }

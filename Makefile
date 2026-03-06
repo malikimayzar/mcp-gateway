@@ -5,15 +5,15 @@ start:
 	@cd /mnt/d/arxiv-research-assistant && docker compose -f infra/docker-compose.yml up -d
 	@sleep 3
 	@echo "Starting Go backend..."
-	@cd /mnt/d/arxiv-research-assistant/go-backend && nohup go run cmd/server/main.go > /tmp/go-backend.log 2>&1 &
+	@cd /mnt/d/arxiv-research-assistant/go-backend && nohup bash -c 'go run cmd/server/main.go > /tmp/go-backend.log 2>&1' &
 	@echo "Starting ML service..."
-	@cd /mnt/d/arxiv-research-assistant/python-ml && nohup bash -c '. venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8001' > /tmp/ml-service.log 2>&1 &
+	@cd /mnt/d/arxiv-research-assistant/python-ml && nohup bash -c '. venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8001 > /tmp/ml-service.log 2>&1' &
 	@echo "Starting eval service..."
-	@cd /mnt/d/llm-eval-framework && nohup bash -c '. venv/bin/activate && uvicorn api:app --host 0.0.0.0 --port 8002' > /tmp/eval-service.log 2>&1 &
+	@cd /mnt/d/llm-eval-framework && nohup bash -c '. venv/bin/activate && uvicorn api:app --host 0.0.0.0 --port 8002 > /tmp/eval-service.log 2>&1' &
 	@echo "Starting retrieval service..."
-	@cd /mnt/d/rag-research && nohup bash -c '. venv/bin/activate && TRANSFORMERS_OFFLINE=1 uvicorn api:app --host 0.0.0.0 --port 8003' > /tmp/rag-service.log 2>&1 &
-	@echo "Starting MCP Gateway..."
-	@cd /mnt/d/mcp-gateway && nohup go run cmd/server/main.go > /tmp/mcp-gateway.log 2>&1 &
+	@cd /mnt/d/rag-research && nohup bash -c '. venv/bin/activate && TRANSFORMERS_OFFLINE=1 uvicorn api:app --host 0.0.0.0 --port 8003 > /tmp/rag-service.log 2>&1' &
+	@echo "Building MCP Gateway..."
+	@cd /mnt/d/mcp-gateway && go build -o /tmp/mcp-gateway-bin ./cmd/server/ && nohup bash -c 'set -a; . /mnt/d/mcp-gateway/.env; set +a; /tmp/mcp-gateway-bin > /tmp/mcp-gateway.log 2>&1' &
 	@sleep 30
 	@$(MAKE) status
 
@@ -22,6 +22,7 @@ stop:
 	@pkill -f "uvicorn" || true
 	@pkill -f "go run cmd/server" || true
 	@pkill -f "go-build" || true
+	@pkill -f "mcp-gateway-bin" || true
 	@fuser -k 8080/tcp || true
 	@fuser -k 8001/tcp || true
 	@fuser -k 8002/tcp || true
@@ -39,8 +40,8 @@ status:
 	@curl -s http://127.0.0.1:8090/health > /dev/null 2>&1 && echo "MCP Gateway    :8090 ✅" || echo "MCP Gateway    :8090 ❌"
 
 logs:
-	@echo "=== Go Backend ===" && tail -5 /tmp/go-backend.log
-	@echo "=== ML Service ===" && tail -5 /tmp/ml-service.log
-	@echo "=== Eval Service ===" && tail -5 /tmp/eval-service.log
-	@echo "=== RAG Service ===" && tail -5 /tmp/rag-service.log
-	@echo "=== MCP Gateway ===" && tail -5 /tmp/mcp-gateway.log
+	@echo "=== Go Backend ===" && tail -20 /tmp/go-backend.log 2>/dev/null || echo "(no log)"
+	@echo "=== ML Service ===" && tail -20 /tmp/ml-service.log 2>/dev/null || echo "(no log)"
+	@echo "=== Eval Service ===" && tail -20 /tmp/eval-service.log 2>/dev/null || echo "(no log)"
+	@echo "=== RAG Service ===" && tail -20 /tmp/rag-service.log 2>/dev/null || echo "(no log)"
+	@echo "=== MCP Gateway ===" && tail -20 /tmp/mcp-gateway.log 2>/dev/null || echo "(no log)"

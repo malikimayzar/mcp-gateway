@@ -36,7 +36,9 @@ func EvaluateAnswer(ctx context.Context, req registry.ToolRequest) registry.Tool
 		"question": question,
 	})
 
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	// Pakai context baru supaya tidak terpengaruh deadline parent
+	evalCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx = evalCtx
 	defer cancel()
 
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", evaluateAnswerURL, bytes.NewBuffer(body))
