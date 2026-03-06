@@ -11,11 +11,15 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/malikimayzar/mcp-gateway/internal/orchestrator"
 	"github.com/malikimayzar/mcp-gateway/internal/planner"
+	"github.com/malikimayzar/mcp-gateway/internal/store"
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 	"github.com/malikimayzar/mcp-gateway/internal/tools"
 )
 
 func main() {
+	store.Init()
+	defer store.Close()
+
 	reg := registry.New()
 	reg.Register("search_arxiv", tools.SearchArxiv)
 	reg.Register("retrieve_chunks", tools.RetrieveChunks)
@@ -112,6 +116,15 @@ func main() {
 			result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 			// Tambah field orchestrator = "rule-based"
+			go store.LogEval(context.Background(), store.EvalLog{
+				Query:             body.Query,
+				Answer:            result.Answer,
+				Faithfulness:      result.Score,
+				FailureMode:       store.ExtractFailureMode(evalData(result)),
+				RetrievalStrategy: "rule-based",
+				Orchestrator:      "rule-based",
+				Retried:           result.Retried,
+			})
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(withOrchestrator(result, "rule-based"))
 			return
@@ -140,6 +153,15 @@ func main() {
 		result := planner.Execute(ctx, reg, execPlan)
 
 		// Tambah field orchestrator = "groq"
+		go store.LogEval(context.Background(), store.EvalLog{
+			Query:             body.Query,
+			Answer:            result.Answer,
+			Faithfulness:      result.Score,
+			FailureMode:       store.ExtractFailureMode(evalData(result)),
+			RetrievalStrategy: "hybrid",
+			Orchestrator:      "groq",
+			Retried:           result.Retried,
+		})
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(withOrchestrator(result, "groq"))
 	})
@@ -165,4 +187,14 @@ func withOrchestrator(result interface{}, name string) map[string]interface{} {
 
 	m["orchestrator"] = name
 	return m
+}
+
+// evalData ambil Data dari step evaluate_answer kalau ada
+func evalData(result planner.ExecutionResult) map[string]interface{} {
+	for _, step := range result.Steps {
+		if step.ToolName == "evaluate_answer" && step.Success {
+			return step.Data
+		}
+	}
+	return nil
 }
