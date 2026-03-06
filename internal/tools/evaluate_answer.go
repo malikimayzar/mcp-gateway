@@ -12,7 +12,7 @@ import (
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 )
 
-const evaluateAnswerURL = "http://localhost:8002/evaluate"
+const evaluateAnswerURL = "http://arxiv-eval-service:8002/evaluate"
 
 func EvaluateAnswer(ctx context.Context, req registry.ToolRequest) registry.ToolResponse {
 	answer, ok := req.Params["answer"].(string)

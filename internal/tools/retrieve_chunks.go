@@ -12,7 +12,7 @@ import (
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 )
 
-const retrieveChunksURL = "http://localhost:8003/retrieve"
+const retrieveChunksURL = "http://arxiv-rag-service:8003/retrieve"
 
 func RetrieveChunks(ctx context.Context, req registry.ToolRequest) registry.ToolResponse {
 	query, ok := req.Params["query"].(string)

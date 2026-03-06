@@ -12,7 +12,7 @@ import (
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
 )
 
-const searchArxivURL = "http://localhost:8080/query"
+const searchArxivURL = "http://arxiv-go-backend:8080/query"
 
 func errorResponse(req registry.ToolRequest, msg string) registry.ToolResponse {
 	return registry.ToolResponse{
