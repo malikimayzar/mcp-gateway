@@ -1,0 +1,53 @@
+# golangci-lint config for mcp-gateway
+# Docs: https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  go: "1.22"
+
+linters:
+  enable:
+    - errcheck        # Unchecked errors
+    - gosimple        # Simplify code
+    - govet           # Go vet checks
+    - ineffassign     # Ineffective assignments
+    - staticcheck     # Static analysis
+    - unused          # Unused code
+    - gofmt           # Format check
+    - goimports       # Import grouping
+    - misspell        # Spelling mistakes
+    - revive          # Drop-in golint replacement
+    - bodyclose       # HTTP response body close check
+    - contextcheck    # Context usage check
+    - noctx           # HTTP requests without context
+    - exhaustive      # Exhaustive switch statements (for enums)
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        severity: warning
+      - name: var-naming
+        severity: warning
+
+  goimports:
+    local-prefixes: github.com/malikimayzar/mcp-gateway
+
+  misspell:
+    locale: US
+
+issues:
+  exclude-rules:
+    # Test files: relax some rules
+    - path: _test\.go
+      linters:
+        - errcheck
+        - bodyclose
+
+    # Generated files
+    - path: ".*\\.gen\\.go"
+      linters:
+        - all
+
+  max-issues-per-linter: 50
+  max-same-issues: 10
