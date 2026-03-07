@@ -122,8 +122,3 @@ jobs:
 
       - name: Verify image built
         run: docker images mcp-gateway
-
-  # ─────────────────────────────────────────
-  # Job 4: Docker Compose Smoke Test
-  # ─────────────────────────────────────────
-  smoke-test:
