@@ -123,7 +123,12 @@ func postJSON(t *testing.T, ts *httptest.Server, path string, body interface{}) 
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
 	}
-	resp, err := http.Post(ts.URL+path, "application/json", bytes.NewReader(b))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, ts.URL+path, bytes.NewReader(b))
+	if err != nil {
+		t.Fatalf("new request %s: %v", path, err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("POST %s: %v", path, err)
 	}
@@ -152,7 +157,11 @@ func TestHealth(t *testing.T) {
 	ts := httptest.NewServer(newTestServer(newTestRegistry()))
 	defer ts.Close()
 
-	resp, err := http.Get(ts.URL + "/health")
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL+"/health", nil)
+	if err != nil {
+		t.Fatalf("new request /health: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET /health: %v", err)
 	}
@@ -256,7 +265,12 @@ func TestTool_InvalidBody(t *testing.T) {
 	ts := httptest.NewServer(newTestServer(newTestRegistry()))
 	defer ts.Close()
 
-	resp, err := http.Post(ts.URL+"/tool", "application/json", bytes.NewBufferString("not-json"))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, ts.URL+"/tool", bytes.NewBufferString("not-json"))
+	if err != nil {
+		t.Fatalf("new request /tool: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("POST /tool: %v", err)
 	}
@@ -320,7 +334,12 @@ func TestPlan_InvalidBody(t *testing.T) {
 	ts := httptest.NewServer(newTestServer(newTestRegistry()))
 	defer ts.Close()
 
-	resp, err := http.Post(ts.URL+"/plan", "application/json", bytes.NewBufferString("{bad json}"))
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, ts.URL+"/plan", bytes.NewBufferString("{bad json}"))
+	if err != nil {
+		t.Fatalf("new request /plan: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("POST /plan: %v", err)
 	}
