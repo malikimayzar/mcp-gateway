@@ -9,10 +9,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
 	"github.com/malikimayzar/mcp-gateway/internal/orchestrator"
 	"github.com/malikimayzar/mcp-gateway/internal/planner"
-	"github.com/malikimayzar/mcp-gateway/internal/store"
 	"github.com/malikimayzar/mcp-gateway/internal/registry"
+	"github.com/malikimayzar/mcp-gateway/internal/store"
 	"github.com/malikimayzar/mcp-gateway/internal/tools"
 )
 
@@ -31,15 +32,15 @@ func main() {
 	r.Use(middleware.RequestID)
 
 	// GET /health — list registered tools
-	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]interface{}{
+	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
 			"tools":  reg.List(),
 		})
 	})
 
 	// POST /tool — direct tool call
-	r.Post("/tool", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/tool", func(w http.ResponseWriter, _ *http.Request) {
 		var req registry.ToolRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request body", http.StatusBadRequest)
@@ -57,11 +58,11 @@ func main() {
 		if !resp.Success {
 			w.WriteHeader(http.StatusBadRequest)
 		}
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	})
 
 	// POST /plan — rule-based planner + eval loop
-	r.Post("/plan", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/plan", func(w http.ResponseWriter, _ *http.Request) {
 		var body struct {
 			Query string `json:"query"`
 			TopK  int    `json:"top_k"`
@@ -84,11 +85,11 @@ func main() {
 		result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		_ = json.NewEncoder(w).Encode(result)
 	})
 
 	// POST /ask — Groq LLM orchestrator, fallback ke rule-based
-	r.Post("/ask", func(w http.ResponseWriter, r *http.Request) {
+	r.Post("/ask", func(w http.ResponseWriter, _ *http.Request) {
 		var body struct {
 			Query string `json:"query"`
 			TopK  int    `json:"top_k"`
@@ -116,7 +117,7 @@ func main() {
 			result := planner.ExecuteWithRetry(ctx, reg, body.Query, body.TopK)
 
 			// Tambah field orchestrator = "rule-based"
-			go store.LogEval(context.Background(), store.EvalLog{
+			go store.LogEval(ctx, store.EvalLog{
 				Query:             body.Query,
 				Answer:            result.Answer,
 				Faithfulness:      result.Score,
@@ -126,7 +127,7 @@ func main() {
 				Retried:           result.Retried,
 			})
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(withOrchestrator(result, "rule-based"))
+			_ = json.NewEncoder(w).Encode(withOrchestrator(result, "rule-based"))
 			return
 		}
 
@@ -153,7 +154,7 @@ func main() {
 		result := planner.Execute(ctx, reg, execPlan)
 
 		// Tambah field orchestrator = "groq"
-		go store.LogEval(context.Background(), store.EvalLog{
+		go store.LogEval(ctx, store.EvalLog{
 			Query:             body.Query,
 			Answer:            result.Answer,
 			Faithfulness:      result.Score,
@@ -163,7 +164,7 @@ func main() {
 			Retried:           result.Retried,
 		})
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(withOrchestrator(result, "groq"))
+		_ = json.NewEncoder(w).Encode(withOrchestrator(result, "groq"))
 	})
 
 	log.Println("MCP Gateway starting on :8090")

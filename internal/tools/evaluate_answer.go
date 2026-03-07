@@ -20,8 +20,8 @@ func EvaluateAnswer(ctx context.Context, req registry.ToolRequest) registry.Tool
 		return errorResponse(req, "param answer is required")
 	}
 
-	context_str, ok := req.Params["context"].(string)
-	if !ok || context_str == "" {
+	contextStr, ok := req.Params["context"].(string)
+	if !ok || contextStr == "" {
 		return errorResponse(req, "param context is required")
 	}
 
@@ -32,12 +32,12 @@ func EvaluateAnswer(ctx context.Context, req registry.ToolRequest) registry.Tool
 
 	body, _ := json.Marshal(map[string]interface{}{
 		"answer":   answer,
-		"context":  context_str,
+		"context":  contextStr,
 		"question": question,
 	})
 
 	// Pakai context baru supaya tidak terpengaruh deadline parent
-	evalCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	evalCtx, cancel := context.WithTimeout(req.Context(), 120*time.Second)
 	ctx = evalCtx
 	defer cancel()
 

@@ -17,7 +17,7 @@ type ToolCall struct {
 	Reason   string                 `json:"reason"`
 }
 
-type OrchestratorPlan struct {
+type Plan struct {
 	Steps  []ToolCall `json:"steps"`
 	Answer string     `json:"answer"`
 }
@@ -50,10 +50,10 @@ func extractJSON(raw string) string {
 	return raw
 }
 
-func Plan(ctx context.Context, query string) (OrchestratorPlan, error) {
+func Plan(ctx context.Context, query string) (Plan, error) {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
-		return OrchestratorPlan{}, fmt.Errorf("GROQ_API_KEY not set")
+		return Plan{}, fmt.Errorf("GROQ_API_KEY not set")
 	}
 
 	config := openai.DefaultConfig(apiKey)
@@ -72,7 +72,7 @@ func Plan(ctx context.Context, query string) (OrchestratorPlan, error) {
 	})
 	if err != nil {
 		log.Printf("[groq] API call failed: %v", err)
-		return OrchestratorPlan{}, fmt.Errorf("groq call failed: %w", err)
+		return Plan{}, fmt.Errorf("groq call failed: %w", err)
 	}
 
 	raw := resp.Choices[0].Message.Content
@@ -81,10 +81,10 @@ func Plan(ctx context.Context, query string) (OrchestratorPlan, error) {
 	cleaned := extractJSON(raw)
 	log.Printf("[groq] cleaned JSON: %s", cleaned)
 
-	var plan OrchestratorPlan
+	var plan Plan
 	if err := json.Unmarshal([]byte(cleaned), &plan); err != nil {
 		log.Printf("[groq] JSON parse failed: %v", err)
-		return OrchestratorPlan{}, fmt.Errorf("failed to parse groq response: %w\nraw: %s", err, raw)
+		return Plan{}, fmt.Errorf("failed to parse groq response: %w\nraw: %s", err, raw)
 	}
 
 	log.Printf("[groq] plan parsed OK — %d steps", len(plan.Steps))
