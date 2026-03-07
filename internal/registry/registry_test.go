@@ -41,7 +41,7 @@ func TestRegisterAndList(t *testing.T) {
 
 func TestExecute_Success(t *testing.T) {
 	r := New()
-	r.Register("echo", func(_ context.Context, _ ToolRequest) ToolResponse {
+	r.Register("echo", func(_ context.Context, req ToolRequest) ToolResponse {
 		return ToolResponse{
 			ToolName: req.ToolName,
 			TraceID:  req.TraceID,
@@ -92,7 +92,7 @@ func TestExecute_ContextPropagation(t *testing.T) {
 	type ctxKey string
 	key := ctxKey("test-key")
 
-	r.Register("ctx_check", func(_ context.Context, _ ToolRequest) ToolResponse {
+	r.Register("ctx_check", func(ctx context.Context, _ ToolRequest) ToolResponse {
 		val, ok := ctx.Value(key).(string)
 		if !ok || val != "test-value" {
 			return ToolResponse{Success: false, Error: "context value not propagated"}
