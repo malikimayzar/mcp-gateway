@@ -6,7 +6,7 @@ import (
 
 func TestExtractFailureMode_WithFailureMode(t *testing.T) {
 	data := map[string]interface{}{
-		"failure_mode":      "unsupported_claims",
+		"failure_mode":       "unsupported_claims",
 		"faithfulness_score": 0.5,
 	}
 
