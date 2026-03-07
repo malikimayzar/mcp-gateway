@@ -3,53 +3,66 @@ package registry
 import (
 	"context"
 	"fmt"
+	"sync"
 )
 
 type ToolRequest struct {
-	ToolName string                 `json:"tool_name"`
-	Params   map[string]interface{} `json:"params"`
-	TraceID  string                 `json:"trace_id"`
+	ToolName string
+	TraceID  string
+	Params   map[string]interface{}
 }
 
 type ToolResponse struct {
-	ToolName string                 `json:"tool_name"`
-	TraceID  string                 `json:"trace_id"`
-	Success  bool                   `json:"success"`
-	Data     map[string]interface{} `json:"data,omitempty"`
-	Error    string                 `json:"error,omitempty"`
+	ToolName string
+	TraceID  string
+	Success  bool
+	Error    string
+	Data     map[string]interface{}
 }
 
-type ToolHandler func(ctx context.Context, req ToolRequest) ToolResponse
+type HandlerFunc func(ctx context.Context, req ToolRequest) ToolResponse
 
 type Registry struct {
-	tools map[string]ToolHandler
+	mu       sync.RWMutex
+	handlers map[string]HandlerFunc
 }
 
 func New() *Registry {
-	return &Registry{tools: make(map[string]ToolHandler)}
+	return &Registry{
+		handlers: make(map[string]HandlerFunc),
+	}
 }
 
-func (r *Registry) Register(name string, handler ToolHandler) {
-	r.tools[name] = handler
+func (r *Registry) Register(name string, handler HandlerFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.handlers[name] = handler
+}
+
+func (r *Registry) List() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := make([]string, 0, len(r.handlers))
+	for name := range r.handlers {
+		names = append(names, name)
+	}
+	return names
 }
 
 func (r *Registry) Execute(ctx context.Context, req ToolRequest) ToolResponse {
-	handler, ok := r.tools[req.ToolName]
+	r.mu.RLock()
+	handler, ok := r.handlers[req.ToolName]
+	r.mu.RUnlock()
+
 	if !ok {
 		return ToolResponse{
 			ToolName: req.ToolName,
 			TraceID:  req.TraceID,
 			Success:  false,
-			Error:    fmt.Sprintf("tool not found: %s", req.ToolName),
+			Error:    fmt.Sprintf("tool %q not found in registry", req.ToolName),
 		}
 	}
-	return handler(ctx, req)
-}
 
-func (r *Registry) List() []string {
-	names := make([]string, 0, len(r.tools))
-	for name := range r.tools {
-		names = append(names, name)
-	}
-	return names
+	return handler(ctx, req)
 }
