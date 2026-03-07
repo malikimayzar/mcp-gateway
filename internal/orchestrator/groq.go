@@ -50,7 +50,7 @@ func extractJSON(raw string) string {
 	return raw
 }
 
-func Plan(ctx context.Context, query string) (Plan, error) {
+func GeneratePlan(ctx context.Context, query string) (Plan, error) {
 	apiKey := os.Getenv("GROQ_API_KEY")
 	if apiKey == "" {
 		return Plan{}, fmt.Errorf("GROQ_API_KEY not set")

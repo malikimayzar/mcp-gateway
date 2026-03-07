@@ -37,7 +37,7 @@ func EvaluateAnswer(ctx context.Context, req registry.ToolRequest) registry.Tool
 	})
 
 	// Pakai context baru supaya tidak terpengaruh deadline parent
-	evalCtx, cancel := context.WithTimeout(req.Context(), 120*time.Second)
+	evalCtx, cancel := context.WithTimeout(ctx, 120*time.Second)
 	ctx = evalCtx
 	defer cancel()
 

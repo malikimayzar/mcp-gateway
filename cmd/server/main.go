@@ -110,7 +110,7 @@ func main() {
 		defer cancel()
 
 		// Coba Groq dulu
-		orcPlan, err := orchestrator.Plan(ctx, body.Query)
+		orcPlan, err := orchestrator.GeneratePlan(ctx, body.Query)
 		if err != nil {
 			// Fallback ke rule-based planner
 			log.Printf("[ask] Groq failed (%v), falling back to rule-based planner", err)
